@@ -3,3 +3,4 @@
 # Ignorar entorno virtual
 
 backend-libros/
+__pycache__/
