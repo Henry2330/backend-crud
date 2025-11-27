@@ -37,6 +37,7 @@ books = [
     Book(id=2, title="Don Quijote de la Mancha", author="Miguel de Cervantes",
          year=1605, price=15.50, stock=3,
          description="La obra más importante de la literatura española."),
+    Book(id=3, tittle="1984", author="George Orwell", year=1949, price=12.00, stock=10, description="Novela distopica sobre un règimen totalitario.")
 ]
 
 # Obtener todos los libros
