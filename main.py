@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,7 +47,7 @@ books = [
 async def root():
     return {
         "success": True,
-        "message": "¡Aplicación CI/CD en AWS funcionando correctamente!",
+        "message": "¡Aplicación CI/CD en AWS funcionando correctamente en python!",
         "data": {
             "version": "1.0.0",
             "environment": os.getenv("NODE_ENV", "development"),
@@ -82,8 +83,11 @@ async def error_test():
 
 
 @app.exception_handler(404)
-async def not_found_handler(request, exc):
-    return {"success": False, "message": "Ruta no encontrada"}
+async def not_found_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=404,
+        content={"success": False, "message": "Ruta no encontrada"}
+    )
 
 
 @app.get("/books", response_model=List[Book])
