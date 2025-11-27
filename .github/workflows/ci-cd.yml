@@ -17,7 +17,7 @@ env:
   CONTAINER_NAME: proyecto-cicd-dev-container
 
 jobs:
-  # Job 1: Tests y validación
+  # Job 1: Tests y validacións
   test:
     name: Run Tests
     runs-on: ubuntu-latest
