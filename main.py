@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import os
+import socket
+from datetime import datetime
 
 app = FastAPI()
 
@@ -48,6 +51,20 @@ books = [
 @app.get("/health")
 async def health():
     return {"status": "OK"}
+
+
+@app.get("/")
+async def root():
+    return {
+        "success": True,
+        "message": "¡Aplicación CI/CD en AWS funcionando correctamente!",
+        "data": {
+            "version": "1.0.0",
+            "environment": os.getenv("ENV", "development"),
+            "timestamp": datetime.now().isoformat(),
+            "hostname": socket.gethostname()
+        }
+    }
 
 
 # Obtener todos los libros
