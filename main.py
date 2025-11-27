@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 app = FastAPI()
 
@@ -19,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Modelo de libro
 class Book(BaseModel):
     id: int
@@ -29,6 +31,7 @@ class Book(BaseModel):
     stock: int
     description: Optional[str] = None
 
+
 # Datos en memoria (se pierden al reiniciar)
 books = [
     Book(id=1, title="Cien años de soledad", author="Gabriel García Márquez",
@@ -37,13 +40,21 @@ books = [
     Book(id=2, title="Don Quijote de la Mancha", author="Miguel de Cervantes",
          year=1605, price=15.50, stock=3,
          description="La obra más importante de la literatura española."),
-    Book(id=3, tittle="1984", author="George Orwell", year=1949, price=12.00, stock=10, description="Novela distopica sobre un règimen totalitario.")
+    Book(id=3, title="1984", author="George Orwell", year=1949, price=12.00, stock=10,
+         description="Novela distopica sobre un règimen totalitario.")
 ]
+
+
+@app.get("/health")
+async def health():
+    return {"status": "OK"}
+
 
 # Obtener todos los libros
 @app.get("/books", response_model=List[Book])
 async def get_books():
     return books
+
 
 # Obtener un libro por ID
 @app.get("/books/{book_id}", response_model=Book)
@@ -53,6 +64,7 @@ async def get_book(book_id: int):
         raise HTTPException(status_code=404, detail="Libro no encontrado")
     return book
 
+
 # Crear un libro
 @app.post("/books", response_model=Book)
 async def create_book(book: Book):
@@ -60,6 +72,7 @@ async def create_book(book: Book):
         raise HTTPException(status_code=400, detail="Ya existe un libro con este ID")
     books.append(book)
     return book
+
 
 # Actualizar un libro
 @app.put("/books/{book_id}", response_model=Book)
@@ -70,6 +83,7 @@ async def update_book(book_id: int, book: Book):
     books[index] = book
     return book
 
+
 # Eliminar un libro
 @app.delete("/books/{book_id}", response_model=Book)
 async def delete_book(book_id: int):
@@ -77,3 +91,8 @@ async def delete_book(book_id: int):
     if index is None:
         raise HTTPException(status_code=404, detail="Libro no encontrado")
     return books.pop(index)
+
+
+# Configuración de uvicorn
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

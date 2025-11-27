@@ -4,3 +4,5 @@
 
 backend-libros/
 __pycache__/
+
+.idea
