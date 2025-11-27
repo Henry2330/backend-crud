@@ -137,42 +137,18 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
     
-    - name: Descargar task definition actual
+    - name: Deploy a ECS
       run: |
-        # Intentar descargar la task definition
-        if aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json 2>/dev/null; then
-          echo "✅ Task definition descargada exitosamente"
-        else
-          echo "⚠️  Task definition no existe. Esto es normal en el primer deploy."
-          echo "El servicio ECS debe ser creado primero con Terraform."
-          exit 1
-        fi
-
-    - name: Actualizar task definition con nueva imagen
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: task-definition.json
-        container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ needs.build.outputs.image }}
-    
-    - name: Deploy a Amazon ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
-    
-    - name: Verificar despliegue
-      run: |
-        echo "✅ Despliegue completado exitosamente"
-        echo "Verificando salud del servicio..."
+        aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service ${{ env.ECS_SERVICE }} \
+          --force-new-deployment \
+          --region ${{ env.AWS_REGION }}
         
-        aws ecs describe-services \
+        aws ecs wait services-stable \
           --cluster ${{ env.ECS_CLUSTER }} \
           --services ${{ env.ECS_SERVICE }} \
-          --query 'services[0].deployments[0]'
+          --region ${{ env.AWS_REGION }}
 
   # Job 5: Notificación (opcional)
   notify:
@@ -184,8 +160,4 @@ jobs:
     steps:
     - name: Notificar resultado
       run: |
-        if [ "${{ needs.deploy.result }}" == "success" ]; then
-          echo " Deploy exitoso!"
-        else
-          echo " Deploy falló"
-        fi
+        [ "${{ needs.deploy.result }}" == "success" ] && echo " Deploy exitoso!" || echo " Deploy falló"
