@@ -57,7 +57,7 @@ async def health():
 async def root():
     return {
         "success": True,
-        "message": "¡Aplicación CI/CD en AWS funcionando correctamente!",
+        "message": "¡Aplicación CI/CD en AWS funcionando correctamente en python!",
         "data": {
             "version": "1.0.0",
             "environment": os.getenv("ENV", "development"),
