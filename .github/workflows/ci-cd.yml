@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - main
+      - develop
   pull_request:
     branches: 
       - main
@@ -17,7 +18,7 @@ env:
   CONTAINER_NAME: proyecto-cicd-dev-container
 
 jobs:
-  # Job 1: Tests y validacións
+  # Job 1: Tests y validación
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -25,11 +26,47 @@ jobs:
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+#    - name: Ejecutar tests
+#      run: pytest
+    
+#    - name: Lint (opcional)
+#      run: echo "Lint ejecutado correctamente"
+
+  # Job 2: Security scan del código
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '0'
 
   # Job 3: Build y push a ECR
   build:
     name: Build and Push
     runs-on: ubuntu-latest
+    needs: [test, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     outputs:
@@ -63,7 +100,6 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ steps.meta.outputs.date }}-${{ steps.meta.outputs.sha_short }}
       run: |
-        
         # Build de la imagen
         docker build \
           --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
@@ -72,11 +108,21 @@ jobs:
           -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
           .
         
+        # Push de todas las tags
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
+        # Output de la imagen para siguiente job
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+    
+    - name: Scan de imagen con Trivy
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ steps.build-image.outputs.image }}
+        format: 'table'
+        exit-code: '0'
 
+  # Job 4: Deploy a ECS
   deploy:
     name: Deploy to ECS
     runs-on: ubuntu-latest
@@ -93,9 +139,14 @@ jobs:
     
     - name: Descargar task definition actual
       run: |
-        aws ecs describe-task-definition \
-          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
-          --query taskDefinition > task-definition.json
+        # Intentar descargar la task definition
+        if aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json 2>/dev/null; then
+          echo "✅ Task definition descargada exitosamente"
+        else
+          echo "⚠️  Task definition no existe. Esto es normal en el primer deploy."
+          echo "El servicio ECS debe ser creado primero con Terraform."
+          exit 1
+        fi
 
     - name: Actualizar task definition con nueva imagen
       id: task-def
@@ -123,6 +174,7 @@ jobs:
           --services ${{ env.ECS_SERVICE }} \
           --query 'services[0].deployments[0]'
 
+  # Job 5: Notificación (opcional)
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
