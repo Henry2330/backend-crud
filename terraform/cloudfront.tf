@@ -15,7 +15,7 @@ resource "aws_cloudfront_distribution" "main" {
     custom_origin_config {
       http_port              = 80
       https_port             = 443
-      origin_protocol_policy = var.certificate_arn != "" || var.domain_name != "" ? "https-only" : "http-only"
+      origin_protocol_policy = "http-only"  # Siempre usar HTTP para comunicación CloudFront -> ALB
       origin_ssl_protocols   = ["TLSv1.2"]
     }
 

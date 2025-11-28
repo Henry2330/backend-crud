@@ -1,11 +1,12 @@
 # Application Load Balancer
 # Configurado como interno cuando se usa CloudFront, público cuando no
+# IMPORTANTE: Cuando es interno, debe estar en subnets públicas con acceso a Internet
 resource "aws_lb" "main" {
   name               = "${var.project_name}-${var.environment}-alb"
-  internal           = var.enable_cloudfront ? true : false
+  internal           = false # Siempre público para que CloudFront pueda acceder
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = var.enable_cloudfront ? aws_subnet.private[*].id : aws_subnet.public[*].id
+  subnets            = aws_subnet.public[*].id
 
   enable_deletion_protection       = false
   enable_http2                     = true
@@ -53,7 +54,6 @@ resource "aws_lb_target_group" "app" {
 }
 
 # Listener HTTP - Redirige a HTTPS si hay certificado, sino forward directo
-# Valida custom header cuando se usa CloudFront
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -76,24 +76,43 @@ resource "aws_lb_listener" "http" {
 }
 
 # Listener rule para validar custom header de CloudFront (si está habilitado)
+# Bloquea el tráfico que NO viene de CloudFront (sin el header correcto)
 resource "aws_lb_listener_rule" "cloudfront_header_validation" {
   count        = var.enable_cloudfront ? 1 : 0
   listener_arn = aws_lb_listener.http.arn
   priority     = 100
 
   action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Access denied"
-      status_code  = "403"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
   }
 
   condition {
     http_header {
       http_header_name = "X-Custom-Header"
       values           = [var.cloudfront_custom_header_value]
+    }
+  }
+}
+
+# Regla para bloquear tráfico sin el header de CloudFront
+resource "aws_lb_listener_rule" "block_direct_access" {
+  count        = var.enable_cloudfront ? 1 : 0
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 200
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Direct access not allowed. Please use CloudFront URL."
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
     }
   }
 }
@@ -114,24 +133,43 @@ resource "aws_lb_listener" "https" {
 }
 
 # Listener rule HTTPS para validar custom header de CloudFront (si está habilitado)
+# Permite el tráfico que viene de CloudFront (con el header correcto)
 resource "aws_lb_listener_rule" "cloudfront_header_validation_https" {
   count        = var.enable_cloudfront && (var.certificate_arn != "" || var.domain_name != "") ? 1 : 0
   listener_arn = aws_lb_listener.https[0].arn
   priority     = 100
 
   action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Access denied"
-      status_code  = "403"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
   }
 
   condition {
     http_header {
       http_header_name = "X-Custom-Header"
       values           = [var.cloudfront_custom_header_value]
+    }
+  }
+}
+
+# Regla HTTPS para bloquear tráfico sin el header de CloudFront
+resource "aws_lb_listener_rule" "block_direct_access_https" {
+  count        = var.enable_cloudfront && (var.certificate_arn != "" || var.domain_name != "") ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 200
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Direct access not allowed. Please use CloudFront URL."
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
     }
   }
 }
