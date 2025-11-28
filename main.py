@@ -12,12 +12,15 @@ import time
 start_time = time.time()
 app = FastAPI()
 
+# Configuración de CORS - Permitir todos los orígenes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # Permitir todos los orígenes
+    allow_credentials=False,  # Debe ser False cuando allow_origins es ["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Métodos HTTP permitidos
+    allow_headers=["*"],  # Permitir todos los headers
+    expose_headers=["*"],  # Exponer todos los headers en la respuesta
+    max_age=3600,  # Cache preflight por 1 hora
 )
 
 
