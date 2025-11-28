@@ -4,6 +4,9 @@ resource "aws_security_group" "alb" {
   description = "Security group for Application Load Balancer"
   vpc_id      = aws_vpc.main.id
 
+  # Regla HTTP - Permite desde cualquier lugar
+  # Nota: Cuando CloudFront está habilitado, la seguridad se maneja a nivel de aplicación
+  # mediante el header personalizado X-Custom-Header configurado en CloudFront
   ingress {
     description = "HTTP from anywhere"
     from_port   = 80
@@ -12,6 +15,7 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Regla HTTPS - Permite desde cualquier lugar
   ingress {
     description = "HTTPS from anywhere"
     from_port   = 443
@@ -31,7 +35,16 @@ resource "aws_security_group" "alb" {
   tags = {
     Name = "${var.project_name}-${var.environment}-alb-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
+
+# NOTA: No usamos la prefix list de CloudFront porque puede expandirse a 50+ reglas
+# y exceder el límite de AWS (60 reglas por security group).
+# En su lugar, la validación de que el tráfico viene de CloudFront se hace mediante
+# el header personalizado X-Custom-Header configurado en la distribución de CloudFront.
 
 # Security Group para ECS Tasks
 resource "aws_security_group" "ecs_tasks" {

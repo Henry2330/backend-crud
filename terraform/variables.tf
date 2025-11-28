@@ -94,6 +94,44 @@ variable "enable_https" {
   default     = true
 }
 
+# Variables para CloudFront
+variable "enable_cloudfront" {
+  description = "Habilitar CloudFront CDN frente al ALB"
+  type        = bool
+  default     = true
+}
+
+variable "cloudfront_price_class" {
+  description = "Clase de precio para CloudFront (PriceClass_All, PriceClass_200, PriceClass_100)"
+  type        = string
+  default     = "PriceClass_100"
+}
+
+variable "cloudfront_custom_header_value" {
+  description = "Valor del custom header para validar tráfico desde CloudFront al ALB"
+  type        = string
+  default     = "CloudFront-Secret-Header-Value-Change-This"
+  sensitive   = true
+}
+
+variable "cloudfront_geo_restriction_type" {
+  description = "Tipo de restricción geográfica (none, whitelist, blacklist)"
+  type        = string
+  default     = "none"
+}
+
+variable "cloudfront_geo_restriction_locations" {
+  description = "Lista de países para restricción geográfica (códigos ISO 3166-1-alpha-2)"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_waf" {
+  description = "Habilitar AWS WAF para CloudFront"
+  type        = bool
+  default     = false
+}
+
 # Variables para RDS
 variable "db_name" {
   description = "Nombre de la base de datos"

@@ -13,6 +13,23 @@ output "alb_dns_name" {
   value       = aws_lb.main.dns_name
 }
 
+output "cloudfront_domain_name" {
+  description = "Nombre de dominio de CloudFront"
+  value       = var.enable_cloudfront ? aws_cloudfront_distribution.main[0].domain_name : "CloudFront no habilitado"
+}
+
+output "cloudfront_url" {
+  description = "URL de CloudFront"
+  value       = var.enable_cloudfront ? "https://${aws_cloudfront_distribution.main[0].domain_name}" : "CloudFront no habilitado"
+}
+
+output "application_url" {
+  description = "URL principal de la aplicación (CloudFront si está habilitado, sino ALB)"
+  value       = var.enable_cloudfront ? "https://${aws_cloudfront_distribution.main[0].domain_name}" : (
+    var.certificate_arn != "" || var.domain_name != "" ? "https://${aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"
+  )
+}
+
 output "alb_url" {
   description = "URL completa de la aplicación"
   value       = "https://${aws_lb.main.dns_name}"

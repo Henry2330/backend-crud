@@ -1,10 +1,11 @@
 # Application Load Balancer
+# Configurado como interno cuando se usa CloudFront, público cuando no
 resource "aws_lb" "main" {
   name               = "${var.project_name}-${var.environment}-alb"
-  internal           = false
+  internal           = var.enable_cloudfront ? true : false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = var.enable_cloudfront ? aws_subnet.private[*].id : aws_subnet.public[*].id
 
   enable_deletion_protection       = false
   enable_http2                     = true
@@ -52,6 +53,7 @@ resource "aws_lb_target_group" "app" {
 }
 
 # Listener HTTP - Redirige a HTTPS si hay certificado, sino forward directo
+# Valida custom header cuando se usa CloudFront
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -73,6 +75,29 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# Listener rule para validar custom header de CloudFront (si está habilitado)
+resource "aws_lb_listener_rule" "cloudfront_header_validation" {
+  count        = var.enable_cloudfront ? 1 : 0
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Access denied"
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "X-Custom-Header"
+      values           = [var.cloudfront_custom_header_value]
+    }
+  }
+}
+
 # Listener HTTPS - Solo se crea si hay un certificado configurado
 resource "aws_lb_listener" "https" {
   count             = var.certificate_arn != "" || var.domain_name != "" ? 1 : 0
@@ -85,6 +110,29 @@ resource "aws_lb_listener" "https" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+
+# Listener rule HTTPS para validar custom header de CloudFront (si está habilitado)
+resource "aws_lb_listener_rule" "cloudfront_header_validation_https" {
+  count        = var.enable_cloudfront && (var.certificate_arn != "" || var.domain_name != "") ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 100
+
+  action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Access denied"
+      status_code  = "403"
+    }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "X-Custom-Header"
+      values           = [var.cloudfront_custom_header_value]
+    }
   }
 }
 
