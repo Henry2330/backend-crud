@@ -60,9 +60,12 @@ async def root():
 @app.get("/health")
 async def health():
     return {
-        "status": "OK",
-        "uptime": time.time() - start_time,
-        "timestamp": datetime.now().isoformat()
+        "status": "healthy",
+        "service": "backend-crud",
+        "uptime_seconds": round(time.time() - start_time, 2),
+        "timestamp": datetime.now().isoformat(),
+        "environment": os.getenv("NODE_ENV", "development"),
+        "hostname": socket.gethostname()
     }
 
 
