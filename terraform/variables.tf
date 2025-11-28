@@ -88,6 +88,12 @@ variable "domain_name" {
   default     = ""
 }
 
+variable "enable_https" {
+  description = "Habilitar HTTPS en el ALB (crea certificado autofirmado si no hay dominio)"
+  type        = bool
+  default     = true
+}
+
 # Variables para RDS
 variable "db_name" {
   description = "Nombre de la base de datos"

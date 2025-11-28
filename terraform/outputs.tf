@@ -15,17 +15,28 @@ output "alb_dns_name" {
 
 output "alb_url" {
   description = "URL completa de la aplicación"
-  value       = var.certificate_arn != "" || var.domain_name != "" ? "https://${aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"
+  value       = "https://${aws_lb.main.dns_name}"
 }
 
 output "alb_https_url" {
   description = "URL HTTPS de la aplicación (si HTTPS está habilitado)"
-  value       = var.certificate_arn != "" || var.domain_name != "" ? "https://${aws_lb.main.dns_name}" : "HTTPS no configurado - Configure certificate_arn o domain_name"
+  value       = var.certificate_arn != "" || var.domain_name != "" || var.enable_https ? "https://${aws_lb.main.dns_name}" : "HTTPS no configurado - Configure certificate_arn, domain_name o enable_https"
 }
 
 output "certificate_arn" {
   description = "ARN del certificado SSL/TLS"
-  value       = var.certificate_arn != "" ? var.certificate_arn : try(aws_acm_certificate.main[0].arn, "No certificate configured")
+  value       = var.certificate_arn != "" ? var.certificate_arn : (
+    var.domain_name != "" ? try(aws_acm_certificate.main[0].arn, "No certificate configured") :
+    try(aws_acm_certificate.self_signed[0].arn, "No certificate configured")
+  )
+}
+
+output "certificate_type" {
+  description = "Tipo de certificado SSL/TLS utilizado"
+  value       = var.certificate_arn != "" ? "Existing ARN" : (
+    var.domain_name != "" ? "ACM Domain Certificate" :
+    var.enable_https ? "Self-Signed Certificate" : "No HTTPS"
+  )
 }
 
 output "certificate_validation_records" {
@@ -105,4 +116,3 @@ output "secrets_manager_console_url" {
   description = "URL de la consola de AWS Secrets Manager"
   value       = "https://console.aws.amazon.com/secretsmanager/home?region=${var.aws_region}"
 }
-
